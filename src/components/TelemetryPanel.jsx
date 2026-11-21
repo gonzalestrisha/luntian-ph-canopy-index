@@ -128,7 +128,7 @@ export default function TelemetryPanel({
                 e.stopPropagation();
                 if (onOpenExplainer) onOpenExplainer();
               }}
-              className="flex items-center gap-1 px-2 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-semibold border border-emerald-200 transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-2 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-semibold border border-emerald-200 transition-colors cursor-pointer pointer-events-auto"
             >
               <HelpCircle className="w-3.5 h-3.5 text-emerald-600" />
               <span>How it works</span>

@@ -40,13 +40,13 @@ export default function ExplainerModal({ isOpen, onClose }) {
               <Layers className="w-4 h-4" /> 1. The 600m × 600m Ground Reticle
             </span>
             <p>
-              A standardized <strong>36-hectare ($360,000\text{ m}^2$)</strong> urban block sample centered at the camera. Click anywhere on the map to jump and inspect that neighborhood.
+              A standardized <strong>36-hectare (360,000 m²)</strong> urban block sample centered at the camera. Click anywhere on the map to jump and inspect that neighborhood.
             </p>
           </div>
 
           <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex flex-col gap-1">
             <span className="font-bold text-teal-400 flex items-center gap-1.5">
-              <Trees className="w-4 h-4" /> 2. Green Ground ($m^2$) vs Built Concrete ($m^3$)
+              <Trees className="w-4 h-4" /> 2. Green Ground (m²) vs Built Concrete (m³)
             </span>
             <p>
               Vivid emerald planes mark permeable vegetative ground. Matte white 2.5D extrusions represent concrete volume trapping solar radiation (Urban Heat Island effect).

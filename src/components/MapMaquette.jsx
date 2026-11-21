@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import * as turf from '@turf/turf';
 import { getInspectionPolygon, computeZoneMetrics } from '../utils/spatial';
@@ -28,6 +28,11 @@ const MapMaquette = forwardRef(function MapMaquette(
   const isPocketParkToolActiveRef = useRef(isPocketParkToolActive);
   const customParksRef = useRef(customParks);
   const isCalculatingRef = useRef(false);
+  // Keep a ref to always-fresh callbacks/values to avoid stale closures in map event handlers
+  const elNinoSeverityRef = useRef(elNinoSeverity);
+  const onMetricsCalculatedRef = useRef(onMetricsCalculated);
+  const onLocationChangeRef = useRef(onLocationChange);
+  const onCameraChangeRef = useRef(onCameraChange);
 
   useEffect(() => {
     isPocketParkToolActiveRef.current = isPocketParkToolActive;
@@ -36,6 +41,22 @@ const MapMaquette = forwardRef(function MapMaquette(
   useEffect(() => {
     customParksRef.current = customParks;
   }, [customParks]);
+
+  useEffect(() => {
+    elNinoSeverityRef.current = elNinoSeverity;
+  }, [elNinoSeverity]);
+
+  useEffect(() => {
+    onMetricsCalculatedRef.current = onMetricsCalculated;
+  }, [onMetricsCalculated]);
+
+  useEffect(() => {
+    onLocationChangeRef.current = onLocationChange;
+  }, [onLocationChange]);
+
+  useEffect(() => {
+    onCameraChangeRef.current = onCameraChange;
+  }, [onCameraChange]);
 
   useImperativeHandle(ref, () => ({
     zoomIn: () => {
@@ -62,7 +83,9 @@ const MapMaquette = forwardRef(function MapMaquette(
     }
   }));
 
-  const forceRecalculate = () => {
+  // Stable ref-based recalculate — always reads latest values via refs, safe to call from any stale closure
+  const forceRecalculateRef = useRef(null);
+  forceRecalculateRef.current = () => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
@@ -74,14 +97,19 @@ const MapMaquette = forwardRef(function MapMaquette(
       source.setData(reticle);
     }
 
-    const computed = computeZoneMetrics(map, reticle, customParksRef.current, elNinoSeverity);
-    onMetricsCalculated(computed);
+    const computed = computeZoneMetrics(map, reticle, customParksRef.current, elNinoSeverityRef.current);
+    if (onMetricsCalculatedRef.current) onMetricsCalculatedRef.current(computed);
 
     const nearestCity = getNearestCity([center.lng, center.lat]);
-    if (onLocationChange) {
-      onLocationChange(nearestCity, [center.lng, center.lat]);
+    if (onLocationChangeRef.current) {
+      onLocationChangeRef.current(nearestCity, [center.lng, center.lat]);
     }
   };
+
+  // Stable wrapper so map event handlers always call latest version
+  const forceRecalculate = useCallback(() => {
+    forceRecalculateRef.current?.();
+  }, []);
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -234,7 +262,7 @@ const MapMaquette = forwardRef(function MapMaquette(
         source: 'custom-parks-source',
         paint: {
           'fill-extrusion-color': initialGreen,
-          'fill-extrusion-height': 5,
+          'fill-extrusion-height': 20,
           'fill-extrusion-base': 0,
           'fill-extrusion-opacity': 0.95
         }
@@ -261,14 +289,33 @@ const MapMaquette = forwardRef(function MapMaquette(
         }
       });
 
+      // Centroid circle markers — always visible even when extrusion is occluded by taller buildings
+      map.addSource('custom-parks-centroids', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] }
+      });
+
+      map.addLayer({
+        id: 'custom-parks-centroids-layer',
+        type: 'circle',
+        source: 'custom-parks-centroids',
+        paint: {
+          'circle-radius': 10,
+          'circle-color': initialGreen,
+          'circle-stroke-width': 2.5,
+          'circle-stroke-color': '#047857',
+          'circle-opacity': 1
+        }
+      });
+
       forceRecalculate();
     });
 
     const onMapMoveEnd = () => {
       forceRecalculate();
 
-      if (onCameraChange) {
-        onCameraChange({
+      if (onCameraChangeRef.current) {
+        onCameraChangeRef.current({
           zoom: map.getZoom(),
           pitch: map.getPitch(),
           bearing: map.getBearing()
@@ -330,6 +377,7 @@ const MapMaquette = forwardRef(function MapMaquette(
     if (map.getLayer('luntian-green-landuse')) map.setPaintProperty('luntian-green-landuse', 'fill-color', dynamicColor);
     if (map.getLayer('custom-parks-layer')) map.setPaintProperty('custom-parks-layer', 'fill-color', dynamicColor);
     if (map.getLayer('custom-parks-extrusion')) map.setPaintProperty('custom-parks-extrusion', 'fill-extrusion-color', dynamicColor);
+    if (map.getLayer('custom-parks-centroids-layer')) map.setPaintProperty('custom-parks-centroids-layer', 'circle-color', dynamicColor);
 
     if (map.getLayer('reticle-layer-outline')) {
       const outlineColor = elNinoSeverity > 0.5 ? '#D97706' : '#059669';
@@ -348,9 +396,23 @@ const MapMaquette = forwardRef(function MapMaquette(
     const source = map.getSource('custom-parks-source');
     if (source) {
       source.setData(turf.featureCollection([...customParks]));
-      map.triggerRepaint();
-      forceRecalculate();
     }
+
+    // Also update centroid markers so parks are always visible even behind tall buildings
+    const centroidSource = map.getSource('custom-parks-centroids');
+    if (centroidSource) {
+      const centroids = customParks.map(park => {
+        try {
+          return turf.centroid(park, { properties: park.properties });
+        } catch {
+          return null;
+        }
+      }).filter(Boolean);
+      centroidSource.setData(turf.featureCollection(centroids));
+    }
+
+    map.triggerRepaint();
+    forceRecalculate();
   }, [customParks]);
 
   // Handle Preset Switching & Bounding Box Restrictions
