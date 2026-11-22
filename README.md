@@ -2,6 +2,10 @@
 
 An interactive urban canopy and heat resilience explorer. Inspect a 600 m neighborhood in a blueprint-style 2.5D map, compare green cover with Philippine and international benchmarks, and simulate El Niño drought stress.
 
+<img width="1920" height="1023" alt="image" src="https://github.com/user-attachments/assets/db1ec3bc-9b91-42c7-9536-d415526d9983" />
+
+
+
 ## Run locally
 
 ```sh
