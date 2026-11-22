@@ -62,7 +62,7 @@ export function computeZoneMetrics(map, inspectionPolygon, customParks = [], elN
   const totalArea = POLICY_THRESHOLDS.INSPECTION_BOX_AREA_SQM; // 360,000 m²
 
   if (!map || !inspectionPolygon) {
-    return getDefaultMetrics();
+    return null;
   }
 
   try {
@@ -95,8 +95,7 @@ export function computeZoneMetrics(map, inspectionPolygon, customParks = [], elN
       'park',
       'landcover_wood',
       'luntian-green-landcover',
-      'luntian-green-landuse',
-      'custom-parks-layer'
+      'luntian-green-landuse'
     ].filter(id => !!map.getLayer(id));
 
     const greenFeatures = map.queryRenderedFeatures(queryBbox, {
@@ -171,7 +170,7 @@ export function computeZoneMetrics(map, inspectionPolygon, customParks = [], elN
           totalGreenArea += 2500 * ratio;
         }
       } catch {
-        totalGreenArea += 2500;
+        // Ignore malformed parks.
       }
     });
 
@@ -220,22 +219,6 @@ export function computeZoneMetrics(map, inspectionPolygon, customParks = [], elN
     };
   } catch (err) {
     console.error('Spatial calculation error:', err);
-    return getDefaultMetrics();
+    return null;
   }
-}
-
-export function getDefaultMetrics() {
-  return {
-    totalArea: POLICY_THRESHOLDS.INSPECTION_BOX_AREA_SQM,
-    greenArea: 54000,
-    greenPercent: 15.0,
-    nominalCanopyVolume: 324000,
-    effectiveCanopyVolume: 324000,
-    effectiveGreenPercent: 15.0,
-    builtVolume: 850000,
-    greenToConcreteRatio: 2.6,
-    sqmPerCapita: 7.5,
-    resilienceTier: RESILIENCE_TIERS.BUFFERED,
-    customParksCount: 0
-  };
 }

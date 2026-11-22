@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { CITY_PRESETS } from './constants/presets';
-import { getDefaultMetrics } from './utils/spatial';
 import { CITY_DATABASE } from './utils/geoCity';
 import TopBar from './components/TopBar';
 import TelemetryPanel from './components/TelemetryPanel';
@@ -13,7 +12,11 @@ export default function App() {
 
   const [activePreset, setActivePreset] = useState(CITY_PRESETS[0]);
   const [currentLocation, setCurrentLocation] = useState(CITY_DATABASE[0]);
-  const [metrics, setMetrics] = useState(getDefaultMetrics());
+  const [metrics, setMetrics] = useState(null);
+  const [mapStatus, setMapStatus] = useState('loading');
+  const [mapAttempt, setMapAttempt] = useState(0);
+  const [retryPreset, setRetryPreset] = useState(CITY_PRESETS[0]);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [elNinoSeverity, setElNinoSeverity] = useState(0.0);
   const [isPocketParkToolActive, setIsPocketParkToolActive] = useState(false);
   const [customParks, setCustomParks] = useState([]);
@@ -44,6 +47,8 @@ export default function App() {
 
   const handleTogglePocketParkTool = () => {
     setIsPocketParkToolActive((prev) => !prev);
+    setSheetOpen(false);
+    if (!isPocketParkToolActive) mapRef.current?.focus();
   };
 
   const handleAddCustomPark = (parkPolygon) => {
@@ -118,14 +123,16 @@ export default function App() {
 
       {/* 2.5D Map Canvas */}
       <MapMaquette
+        key={mapAttempt}
         ref={mapRef}
-        initialPreset={CITY_PRESETS[0]}
+        initialPreset={retryPreset}
         activePreset={activePreset}
         elNinoSeverity={elNinoSeverity}
         isPocketParkToolActive={isPocketParkToolActive}
         customParks={customParks}
         onAddCustomPark={handleAddCustomPark}
         onMetricsCalculated={setMetrics}
+        onStatusChange={setMapStatus}
         onCameraChange={handleCameraChange}
         onLocationChange={handleLocationChange}
       />
@@ -147,6 +154,16 @@ export default function App() {
       <TelemetryPanel
         currentLocation={currentLocation}
         metrics={metrics}
+        mapStatus={mapStatus}
+        parkCount={customParks.length}
+        sheetOpen={sheetOpen}
+        onToggleSheet={() => setSheetOpen(open => !open)}
+        onRetry={() => {
+          const view = mapRef.current?.getView();
+          setRetryPreset({ ...(activePreset || retryPreset), ...(view || {}) });
+          setMapStatus('loading');
+          setMapAttempt(n => n + 1);
+        }}
         elNinoSeverity={elNinoSeverity}
         onElNinoChange={setElNinoSeverity}
         isPocketParkToolActive={isPocketParkToolActive}

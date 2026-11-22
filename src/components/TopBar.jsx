@@ -7,9 +7,9 @@ export default function TopBar({ activePreset, currentLocation, onSelectPreset }
   const displayCanopy = currentLocation?.leavesCanopy || '15.4%';
 
   return (
-    <header className="absolute top-4 left-4 right-4 z-20 pointer-events-none">
+    <header className="top-bar absolute top-4 left-4 right-4 z-20 pointer-events-none">
       <div className="paper-panel pointer-events-auto grid grid-cols-1 xl:grid-cols-[minmax(270px,1fr)_auto]">
-        <section className="min-w-0 border-b xl:border-b-0 xl:border-r border-black/30 px-4 py-3 flex items-start justify-between gap-4">
+        <section className="top-bar-brand min-w-0 border-b xl:border-b-0 xl:border-r border-black/30 px-4 py-3 flex items-start justify-between gap-4">
           <div className="flex gap-3 min-w-0">
             <div className="w-9 h-9 bg-black text-white flex items-center justify-center shrink-0"><Leaf className="w-4 h-4" /></div>
             <div className="min-w-0">
@@ -18,7 +18,7 @@ export default function TopBar({ activePreset, currentLocation, onSelectPreset }
               <p className="text-[10px] leading-tight text-zinc-600 mt-1">Urban Green Massing &amp; Heat Resilience Index</p>
             </div>
           </div>
-          <div className="border-l border-black/30 pl-3 shrink-0 text-right">
+          <div className="top-bar-location border-l border-black/30 pl-3 shrink-0 text-right">
             <div className="editorial-label text-emerald-700">Active field note</div>
             <div className="text-xs font-semibold truncate max-w-[155px]">{displayLocation}</div>
             <div className="font-mono text-[10px] text-emerald-700">CANOPY {displayCanopy}</div>
@@ -29,7 +29,7 @@ export default function TopBar({ activePreset, currentLocation, onSelectPreset }
           {CITY_PRESETS.map((preset, index) => {
             const isActive = activePreset?.id === preset.id;
             return (
-              <button type="button" key={preset.id} onClick={() => onSelectPreset(preset)} className={`min-w-max px-2.5 py-1.5 border text-left transition-colors ${isActive ? 'bg-black text-white border-black' : 'bg-transparent text-zinc-800 border-transparent hover:border-black'}`}>
+              <button type="button" key={preset.id} onClick={() => onSelectPreset(preset)} aria-pressed={isActive} className={`min-w-max px-2.5 py-1.5 border text-left transition-colors ${isActive ? 'bg-black text-white border-black' : 'bg-transparent text-zinc-800 border-transparent hover:border-black'}`}>
                 <span className="block editorial-label opacity-60">0{index + 1}</span>
                 <span className="block text-[11px] font-semibold leading-tight">{preset.name}</span>
                 <span className={`block font-mono text-[9px] ${isActive ? 'text-emerald-300' : 'text-emerald-700'}`}>{preset.leavesCanopy}</span>
