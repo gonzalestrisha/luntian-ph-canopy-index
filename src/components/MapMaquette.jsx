@@ -9,6 +9,68 @@ import { getNearestCity } from '../utils/geoCity';
 const NCR_BOUNDS = [[120.88, 14.32], [121.18, 14.80]];
 const SINGAPORE_BOUNDS = [[103.82, 1.25], [103.88, 1.32]];
 
+const BLUEPRINT = {
+  paper: '#F7F8FA',
+  paperDark: '#E7EAF0',
+  ink: '#334155',
+  inkSoft: '#94A3B8',
+  water: '#E2E8F0',
+  green: '#10B981'
+};
+
+function hashString(value) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967296;
+}
+
+function getTreeCanopyFeatures(map) {
+  const layers = ['park', 'landcover_wood', 'luntian-green-landcover', 'luntian-green-landuse']
+    .filter(id => !!map.getLayer(id));
+  if (!layers.length) return turf.featureCollection([]);
+
+  const features = map.queryRenderedFeatures({ layers });
+  const seen = new Set();
+  const canopies = [];
+
+  features.forEach((feature, featureIndex) => {
+    if (!feature.geometry) return;
+    const key = feature.id != null
+      ? String(feature.id)
+      : `${feature.layer?.id}-${featureIndex}-${feature.properties?.class || ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    try {
+      const [minLng, minLat, maxLng, maxLat] = turf.bbox(feature);
+      const widthMeters = Math.abs(maxLng - minLng) * 105000;
+      const heightMeters = Math.abs(maxLat - minLat) * 111000;
+      const count = Math.min(14, Math.max(1, Math.round((widthMeters + heightMeters) / 180)));
+
+      for (let i = 0; i < count && canopies.length < 900; i += 1) {
+        const seed = hashString(`${key}-${i}`);
+        const lng = minLng + (maxLng - minLng) * ((seed * 0.73 + 0.13) % 1);
+        const lat = minLat + (maxLat - minLat) * ((seed * 0.41 + 0.29) % 1);
+        const point = turf.point([lng, lat]);
+
+        if (turf.booleanPointInPolygon(point, feature)) {
+          canopies.push(turf.feature(point, {
+            size: 0.75 + hashString(`${key}-size-${i}`) * 0.75,
+            rotation: Math.round(hashString(`${key}-rotation-${i}`) * 360)
+          }));
+        }
+      }
+    } catch {
+      // Ignore malformed or unloaded vector-tile features.
+    }
+  });
+
+  return turf.featureCollection(canopies);
+}
+
 const MapMaquette = forwardRef(function MapMaquette(
   {
     initialPreset,
@@ -28,6 +90,8 @@ const MapMaquette = forwardRef(function MapMaquette(
   const isPocketParkToolActiveRef = useRef(isPocketParkToolActive);
   const customParksRef = useRef(customParks);
   const isCalculatingRef = useRef(false);
+  const recalculateTimerRef = useRef(null);
+  const treeCanopyTimerRef = useRef(null);
   // Keep a ref to always-fresh callbacks/values to avoid stale closures in map event handlers
   const elNinoSeverityRef = useRef(elNinoSeverity);
   const onMetricsCalculatedRef = useRef(onMetricsCalculated);
@@ -111,6 +175,16 @@ const MapMaquette = forwardRef(function MapMaquette(
     forceRecalculateRef.current?.();
   }, []);
 
+  const scheduleRecalculate = useCallback(() => {
+    if (recalculateTimerRef.current) {
+      clearTimeout(recalculateTimerRef.current);
+    }
+    recalculateTimerRef.current = setTimeout(() => {
+      recalculateTimerRef.current = null;
+      forceRecalculate();
+    }, 200);
+  }, [forceRecalculate]);
+
   useEffect(() => {
     if (mapRef.current) return;
 
@@ -138,16 +212,40 @@ const MapMaquette = forwardRef(function MapMaquette(
         if (layer.type === 'symbol') {
           map.setLayoutProperty(layer.id, 'visibility', 'none');
         }
+
+        // Quiet the source style into a paper/ink architectural base.
+        if (layer.type === 'background' && map.getLayer(layer.id)) {
+          map.setPaintProperty(layer.id, 'background-color', BLUEPRINT.paper);
+        }
+        if (layer.type === 'fill' && map.getLayer(layer.id)) {
+          const id = layer.id.toLowerCase();
+          if (id.includes('water')) {
+            map.setPaintProperty(layer.id, 'fill-color', BLUEPRINT.water);
+            map.setPaintProperty(layer.id, 'fill-opacity', 0.8);
+          } else if (id.includes('building')) {
+            map.setLayoutProperty(layer.id, 'visibility', 'none');
+          } else if (id.includes('park') || id.includes('landcover') || id.includes('landuse')) {
+            map.setPaintProperty(layer.id, 'fill-color', BLUEPRINT.paperDark);
+            map.setPaintProperty(layer.id, 'fill-opacity', 0.55);
+          }
+        }
+        if (layer.type === 'line' && map.getLayer(layer.id)) {
+          const id = layer.id.toLowerCase();
+          if (id.includes('road') || id.includes('transport') || id.includes('street')) {
+            map.setPaintProperty(layer.id, 'line-color', BLUEPRINT.inkSoft);
+            map.setPaintProperty(layer.id, 'line-opacity', 0.55);
+          }
+        }
       });
 
       if (map.getLayer('background')) {
-        map.setPaintProperty('background', 'background-color', '#F3F4F6');
+        map.setPaintProperty('background', 'background-color', BLUEPRINT.paper);
       }
 
       map.setLight({
         anchor: 'viewport',
         color: '#FFFFFF',
-        intensity: 0.45,
+        intensity: 0.32,
         position: [1.15, 210, 30]
       });
 
@@ -155,12 +253,16 @@ const MapMaquette = forwardRef(function MapMaquette(
 
       if (map.getLayer('park')) {
         map.setPaintProperty('park', 'fill-color', initialGreen);
-        map.setPaintProperty('park', 'fill-opacity', 0.85);
+        map.setPaintProperty('park', 'fill-opacity', [
+          'interpolate', ['linear'], ['zoom'], 13.5, 0.28, 16, 0.46, 18, 0.58
+        ]);
       }
 
       if (map.getLayer('landcover_wood')) {
         map.setPaintProperty('landcover_wood', 'fill-color', initialGreen);
-        map.setPaintProperty('landcover_wood', 'fill-opacity', 0.85);
+        map.setPaintProperty('landcover_wood', 'fill-opacity', [
+          'interpolate', ['linear'], ['zoom'], 13.5, 0.24, 16, 0.42, 18, 0.54
+        ]);
       }
 
       if (!map.getLayer('luntian-green-landcover')) {
@@ -172,7 +274,9 @@ const MapMaquette = forwardRef(function MapMaquette(
           filter: ['in', 'class', 'grass', 'wood', 'scrub', 'wetland', 'crop'],
           paint: {
             'fill-color': initialGreen,
-            'fill-opacity': 0.85
+            'fill-opacity': [
+              'interpolate', ['linear'], ['zoom'], 13.5, 0.22, 16, 0.4, 18, 0.52
+            ]
           }
         });
       }
@@ -186,7 +290,9 @@ const MapMaquette = forwardRef(function MapMaquette(
           filter: ['in', 'class', 'park', 'cemetery', 'recreation_ground', 'forest', 'meadow', 'pitch', 'grass'],
           paint: {
             'fill-color': initialGreen,
-            'fill-opacity': 0.85
+            'fill-opacity': [
+              'interpolate', ['linear'], ['zoom'], 13.5, 0.24, 16, 0.44, 18, 0.56
+            ]
           }
         });
       }
@@ -202,7 +308,9 @@ const MapMaquette = forwardRef(function MapMaquette(
           source: 'openmaptiles',
           'source-layer': 'building',
           paint: {
-            'fill-extrusion-color': '#FFFFFF',
+            'fill-extrusion-color': [
+              'interpolate', ['linear'], ['zoom'], 13.5, '#E2E8F0', 16, '#F8FAFC', 18, '#FFFFFF'
+            ],
             'fill-extrusion-height': [
               'coalesce',
               ['get', 'render_height'],
@@ -214,7 +322,9 @@ const MapMaquette = forwardRef(function MapMaquette(
               ['get', 'render_min_height'],
               0
             ],
-            'fill-extrusion-opacity': 0.96
+            'fill-extrusion-opacity': [
+              'interpolate', ['linear'], ['zoom'], 13.5, 0.78, 16, 0.88, 18, 0.94
+            ]
           }
         });
       }
@@ -234,7 +344,7 @@ const MapMaquette = forwardRef(function MapMaquette(
         source: 'reticle-source',
         paint: {
           'fill-color': '#10B981',
-          'fill-opacity': 0.06
+          'fill-opacity': 0.035
         }
       });
 
@@ -243,12 +353,68 @@ const MapMaquette = forwardRef(function MapMaquette(
         type: 'line',
         source: 'reticle-source',
         paint: {
-          'line-color': '#059669',
-          'line-width': 2.5,
-          'line-dasharray': [3, 2],
-          'line-opacity': 0.90
+          'line-color': BLUEPRINT.ink,
+          'line-width': 1.5,
+          'line-dasharray': [2.5, 2],
+          'line-opacity': 0.82
         }
       });
+
+      // Tree canopies: the green signal is carried by clustered crowns, not solid landcover.
+      map.addSource('tree-canopies-source', {
+        type: 'geojson',
+        data: turf.featureCollection([])
+      });
+
+      map.addLayer({
+        id: 'tree-canopies-shadow',
+        type: 'circle',
+        source: 'tree-canopies-source',
+        minzoom: 13.5,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 13.5, 3, 16, 5.5, 18, 8],
+          'circle-color': BLUEPRINT.ink,
+          'circle-opacity': 0.16,
+          'circle-translate': [1.5, 1.5],
+          'circle-blur': 0.25
+        }
+      });
+
+      map.addLayer({
+        id: 'tree-canopies-layer',
+        type: 'circle',
+        source: 'tree-canopies-source',
+        minzoom: 13.5,
+        paint: {
+          'circle-radius': [
+            '*',
+            ['get', 'size'],
+            ['interpolate', ['linear'], ['zoom'], 13.5, 3, 16, 5.5, 18, 8]
+          ],
+          'circle-color': initialGreen,
+          'circle-stroke-color': BLUEPRINT.ink,
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 13.5, 0.35, 16, 0.7, 18, 1],
+          'circle-opacity': ['interpolate', ['linear'], ['zoom'], 13.5, 0.7, 16, 0.88, 18, 0.96],
+          'circle-blur': 0.08
+        }
+      });
+
+      const refreshTreeCanopies = () => {
+        const source = map.getSource('tree-canopies-source');
+        if (source && map.isStyleLoaded()) {
+          source.setData(getTreeCanopyFeatures(map));
+        }
+      };
+
+      const scheduleTreeCanopies = () => {
+        if (treeCanopyTimerRef.current) clearTimeout(treeCanopyTimerRef.current);
+        treeCanopyTimerRef.current = setTimeout(() => {
+          treeCanopyTimerRef.current = null;
+          refreshTreeCanopies();
+        }, 220);
+      };
+
+      setTimeout(refreshTreeCanopies, 250);
 
       // Custom Dropped Parks (Source + 2.5D Green Terrace Extrusion + Crisp Outline)
       map.addSource('custom-parks-source', {
@@ -274,7 +440,7 @@ const MapMaquette = forwardRef(function MapMaquette(
         source: 'custom-parks-source',
         paint: {
           'fill-color': initialGreen,
-          'fill-opacity': 0.95
+          'fill-opacity': 0.9
         }
       });
 
@@ -284,7 +450,7 @@ const MapMaquette = forwardRef(function MapMaquette(
         source: 'custom-parks-source',
         paint: {
           'line-color': '#047857',
-          'line-width': 3.5,
+          'line-width': 2,
           'line-opacity': 1
         }
       });
@@ -300,7 +466,7 @@ const MapMaquette = forwardRef(function MapMaquette(
         type: 'circle',
         source: 'custom-parks-centroids',
         paint: {
-          'circle-radius': 10,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 13.5, 5, 16, 8, 18, 11],
           'circle-color': initialGreen,
           'circle-stroke-width': 2.5,
           'circle-stroke-color': '#047857',
@@ -312,7 +478,15 @@ const MapMaquette = forwardRef(function MapMaquette(
     });
 
     const onMapMoveEnd = () => {
-      forceRecalculate();
+      scheduleRecalculate();
+      if (map.isStyleLoaded()) {
+        if (treeCanopyTimerRef.current) clearTimeout(treeCanopyTimerRef.current);
+        treeCanopyTimerRef.current = setTimeout(() => {
+          treeCanopyTimerRef.current = null;
+          const source = map.getSource('tree-canopies-source');
+          if (source) source.setData(getTreeCanopyFeatures(map));
+        }, 220);
+      }
 
       if (onCameraChangeRef.current) {
         onCameraChangeRef.current({
@@ -324,12 +498,6 @@ const MapMaquette = forwardRef(function MapMaquette(
     };
 
     map.on('moveend', onMapMoveEnd);
-
-    map.on('idle', () => {
-      if (!isCalculatingRef.current) {
-        forceRecalculate();
-      }
-    });
 
     // Map Click
     map.on('click', (e) => {
@@ -359,6 +527,14 @@ const MapMaquette = forwardRef(function MapMaquette(
     });
 
     return () => {
+      if (recalculateTimerRef.current) {
+        clearTimeout(recalculateTimerRef.current);
+        recalculateTimerRef.current = null;
+      }
+      if (treeCanopyTimerRef.current) {
+        clearTimeout(treeCanopyTimerRef.current);
+        treeCanopyTimerRef.current = null;
+      }
       map.remove();
       mapRef.current = null;
     };
@@ -375,12 +551,13 @@ const MapMaquette = forwardRef(function MapMaquette(
     if (map.getLayer('landcover_wood')) map.setPaintProperty('landcover_wood', 'fill-color', dynamicColor);
     if (map.getLayer('luntian-green-landcover')) map.setPaintProperty('luntian-green-landcover', 'fill-color', dynamicColor);
     if (map.getLayer('luntian-green-landuse')) map.setPaintProperty('luntian-green-landuse', 'fill-color', dynamicColor);
+    if (map.getLayer('tree-canopies-layer')) map.setPaintProperty('tree-canopies-layer', 'circle-color', dynamicColor);
     if (map.getLayer('custom-parks-layer')) map.setPaintProperty('custom-parks-layer', 'fill-color', dynamicColor);
     if (map.getLayer('custom-parks-extrusion')) map.setPaintProperty('custom-parks-extrusion', 'fill-extrusion-color', dynamicColor);
     if (map.getLayer('custom-parks-centroids-layer')) map.setPaintProperty('custom-parks-centroids-layer', 'circle-color', dynamicColor);
 
     if (map.getLayer('reticle-layer-outline')) {
-      const outlineColor = elNinoSeverity > 0.5 ? '#D97706' : '#059669';
+      const outlineColor = elNinoSeverity > 0.5 ? '#D97706' : BLUEPRINT.ink;
       map.setPaintProperty('reticle-layer-outline', 'line-color', outlineColor);
     }
 
