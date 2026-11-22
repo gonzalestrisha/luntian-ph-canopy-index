@@ -8,7 +8,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        display: ['"Plus Jakarta Sans"', 'sans-serif'],
+        mono: ['"DM Mono"', 'monospace'],
       },
       colors: {
         emerald: {
