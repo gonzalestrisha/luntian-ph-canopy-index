@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X, ExternalLink, BookOpen, Scale, Trees, Layers } from 'lucide-react';
 
 const sections = [
@@ -15,12 +15,32 @@ const references = [
 ];
 
 export default function ExplainerModal({ isOpen, onClose }) {
+  const dialogRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement;
+    const dialog = dialogRef.current;
+    const focusable = () => Array.from(dialog.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+    focusable()[0]?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); onCloseRef.current(); }
+      if (event.key !== 'Tab') return;
+      const items = focusable();
+      if (!items.length) { event.preventDefault(); return; }
+      if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items[items.length - 1].focus(); }
+      else if (!event.shiftKey && document.activeElement === items[items.length - 1]) { event.preventDefault(); items[0].focus(); }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => { document.removeEventListener('keydown', handleKeyDown); previousFocus?.focus(); };
+  }, [isOpen]);
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/55" onClick={onClose}>
-      <article className="glass-panel-dark paper-grid max-w-2xl w-full p-5 md:p-7 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <article ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="guide-title" className="glass-panel-dark paper-grid max-w-2xl w-full p-5 md:p-7 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <header className="border-b-2 border-black pb-4 flex justify-between gap-4">
-          <div className="flex gap-3"><div className="w-10 h-10 bg-black text-white flex items-center justify-center"><BookOpen className="w-5 h-5" /></div><div><div className="editorial-label text-emerald-700">Reader’s guide · Luntian 2.5D</div><h2 className="font-display text-3xl font-bold leading-none">How to Read LUNTIAN 2.5D</h2></div></div>
+          <div className="flex gap-3"><div className="w-10 h-10 bg-black text-white flex items-center justify-center"><BookOpen className="w-5 h-5" /></div><div><div className="editorial-label text-emerald-700">Reader’s guide · Luntian 2.5D</div><h2 id="guide-title" className="font-display text-3xl font-bold leading-none">How to Read LUNTIAN 2.5D</h2></div></div>
           <button type="button" onClick={onClose} className="paper-button w-8 h-8 flex items-center justify-center" aria-label="Close guide"><X className="w-4 h-4" /></button>
         </header>
         <div className="grid md:grid-cols-3 border-l border-t border-black/40 mt-5">

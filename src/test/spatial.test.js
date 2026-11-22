@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as turf from '@turf/turf';
-import { getInspectionPolygon, getDefaultMetrics, computeZoneMetrics } from '../utils/spatial';
+import { getInspectionPolygon, computeZoneMetrics } from '../utils/spatial';
 import { POLICY_THRESHOLDS } from '../constants/policy';
 
 // ─── getInspectionPolygon ────────────────────────────────────────────────────
@@ -49,46 +49,17 @@ describe('getInspectionPolygon', () => {
 
 // ─── getDefaultMetrics ──────────────────────────────────────────────────────
 
-describe('getDefaultMetrics', () => {
-  it('returns a valid metrics object with expected keys', () => {
-    const m = getDefaultMetrics();
-    expect(m).toHaveProperty('greenArea');
-    expect(m).toHaveProperty('greenPercent');
-    expect(m).toHaveProperty('builtVolume');
-    expect(m).toHaveProperty('nominalCanopyVolume');
-    expect(m).toHaveProperty('effectiveCanopyVolume');
-    expect(m).toHaveProperty('customParksCount');
-    expect(m).toHaveProperty('resilienceTier');
-  });
-
-  it('greenPercent is a number between 0 and 100', () => {
-    const { greenPercent } = getDefaultMetrics();
-    expect(greenPercent).toBeGreaterThanOrEqual(0);
-    expect(greenPercent).toBeLessThanOrEqual(100);
-  });
-
-  it('totalArea matches policy constant', () => {
-    expect(getDefaultMetrics().totalArea).toBe(POLICY_THRESHOLDS.INSPECTION_BOX_AREA_SQM);
-  });
-
-  it('customParksCount defaults to 0', () => {
-    expect(getDefaultMetrics().customParksCount).toBe(0);
-  });
-});
-
-// ─── computeZoneMetrics — edge cases (no real map) ──────────────────────────
-
 describe('computeZoneMetrics', () => {
-  it('returns default metrics when map is null', () => {
+  it('returns unavailable when map is null', () => {
     const poly = getInspectionPolygon([121.0509, 14.6760]);
     const result = computeZoneMetrics(null, poly, [], 0);
-    expect(result).toEqual(getDefaultMetrics());
+    expect(result).toBeNull();
   });
 
-  it('returns default metrics when inspectionPolygon is null', () => {
+  it('returns unavailable when inspectionPolygon is null', () => {
     const mockMap = { queryRenderedFeatures: () => [] };
     const result = computeZoneMetrics(mockMap, null, [], 0);
-    expect(result).toEqual(getDefaultMetrics());
+    expect(result).toBeNull();
   });
 
   it('accounts for custom pocket parks in greenArea', () => {
@@ -112,7 +83,7 @@ describe('computeZoneMetrics', () => {
     const result = computeZoneMetrics(mockMap, poly, [parkPoly], 0);
     // green area should include the 2500 m² park contribution
     expect(result.customParksCount).toBe(1);
-    expect(result.greenArea).toBeGreaterThanOrEqual(0);
+    expect(result.greenArea).toBe(2500);
   });
 
   it('applies El Niño drought factor to effective canopy volume', () => {

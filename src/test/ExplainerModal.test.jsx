@@ -56,4 +56,21 @@ describe('ExplainerModal', () => {
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });
   });
+  it('traps focus, closes on Escape, and restores focus', () => {
+    const trigger = document.createElement('button');
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const close = vi.fn();
+    const { rerender } = render(<ExplainerModal isOpen onClose={close} />);
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
+    const closeButton = screen.getByRole('button', { name: /close guide/i });
+    expect(closeButton).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(screen.getByRole('link', { name: /singapore/i })).toHaveFocus();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(close).toHaveBeenCalledOnce();
+    rerender(<ExplainerModal isOpen={false} onClose={close} />);
+    expect(trigger).toHaveFocus();
+    trigger.remove();
+  });
 });

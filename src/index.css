@@ -99,3 +99,27 @@
   color: #64748B;
   background: rgba(247, 248, 250, 0.78) !important;
 }
+
+:focus-visible { outline: 3px solid #047857; outline-offset: 2px; }
+.sheet-toggle { display: none; }
+@media (max-width: 767px) {
+  .telemetry-sheet { top: auto; bottom: 0; left: 0; right: 0; width: 100%; max-height: min(70dvh, 600px); }
+  .telemetry-sheet > div { overflow-y: auto; }
+  .sheet-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 12px 16px; font-family: "DM Mono", monospace; font-size: 12px; font-weight: bold; text-align: left; }
+  .sheet-toggle span { font-size: 20px; line-height: 1; }
+  .telemetry-sheet:not(.sheet-open) .telemetry-content { display: none; }
+  .zoom-controls { bottom: 75px; left: 12px; }
+  .top-bar { top: 8px; left: 8px; right: 8px; }
+  .top-bar-brand { padding: 8px; align-items: center; gap: 8px; }
+  .top-bar-brand > div:first-child { gap: 8px; align-items: center; }
+  .top-bar-brand > div:first-child > div:first-child { width: 28px; height: 28px; }
+  .top-bar-brand h1 { font-size: 20px; white-space: nowrap; }
+  .top-bar-brand h1 + p, .top-bar-brand h1 ~ p, .top-bar-brand h1 ~ .editorial-label, .top-bar-brand > div:first-child .editorial-label { display: none; }
+  .top-bar-location { min-width: 0; padding-left: 6px; }
+  .top-bar-location .editorial-label { display: none; }
+  .top-bar-location .text-xs { max-width: 115px; font-size: 10px; }
+  .top-bar nav { padding: 4px; }
+  .top-bar nav button { padding: 4px 8px; }
+  .maplibregl-ctrl-bottom-right { max-width: calc(100% - 90px); bottom: 70px !important; }
+  .maplibregl-ctrl-attrib { max-width: 100%; }
+}

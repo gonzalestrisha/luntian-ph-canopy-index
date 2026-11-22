@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TelemetryPanel from '../components/TelemetryPanel';
-import { getDefaultMetrics } from '../utils/spatial';
+const getDefaultMetrics = () => ({ greenArea: 54000, greenPercent: 15, nominalCanopyVolume: 324000, builtVolume: 850000, customParksCount: 0 });
 import { CITY_DATABASE } from '../utils/geoCity';
 
 const defaultProps = {
@@ -72,7 +72,7 @@ describe('TelemetryPanel', () => {
 
   it('shows active hint text when pocket park tool is on', () => {
     render(<TelemetryPanel {...defaultProps} isPocketParkToolActive={true} />);
-    expect(screen.getByText(/drop a 50m × 50m green park/i)).toBeInTheDocument();
+    expect(screen.getByText(/drop a 25m × 25m green park/i)).toBeInTheDocument();
   });
 
   it('renders El Niño slider with correct range', () => {
@@ -81,6 +81,14 @@ describe('TelemetryPanel', () => {
     expect(slider).toHaveAttribute('min', '0');
     expect(slider).toHaveAttribute('max', '1');
     expect(slider).toHaveAttribute('step', '0.01');
+  });
+
+  it('exposes the drought percentage and clears preset selection between stops', () => {
+    const { rerender } = render(<TelemetryPanel {...defaultProps} elNinoSeverity={0.5} />);
+    expect(screen.getByRole('button', { name: 'Moderate 50%', pressed: true })).toBeInTheDocument();
+    rerender(<TelemetryPanel {...defaultProps} elNinoSeverity={0.37} />);
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', '37%');
+    expect(screen.queryByRole('button', { pressed: true })).not.toBeInTheDocument();
   });
 
   it('calls onElNinoChange when slider changes', () => {
@@ -112,5 +120,25 @@ describe('TelemetryPanel', () => {
     render(<TelemetryPanel {...defaultProps} onRefreshMetrics={onRefresh} />);
     fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+  it('shows status instead of stale measurements and offers a retry', () => {
+    const retry = vi.fn();
+    const { rerender } = render(<TelemetryPanel {...defaultProps} mapStatus="loading" />);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading map data');
+    expect(screen.queryByText('Resilience Score')).not.toBeInTheDocument();
+    rerender(<TelemetryPanel {...defaultProps} mapStatus="unavailable" onRetry={retry} />);
+    fireEvent.click(screen.getByRole('button', { name: /retry map/i }));
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it('renders a measured zero and exposes the sheet and planting state', () => {
+    const toggle = vi.fn();
+    render(<TelemetryPanel {...defaultProps} metrics={{ ...getDefaultMetrics(), greenArea: 0, greenPercent: 0, nominalCanopyVolume: 0, builtVolume: 0 }} sheetOpen={false} onToggleSheet={toggle} isPocketParkToolActive />);
+    expect(screen.getByText('0.0')).toBeInTheDocument();
+    const sheet = screen.getByRole('button', { name: /block index/i, hidden: true });
+    expect(sheet).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(sheet);
+    expect(toggle).toHaveBeenCalledOnce();
+    expect(screen.getByRole('button', { name: /click map to plant/i })).toHaveAttribute('aria-pressed', 'true');
   });
 });
