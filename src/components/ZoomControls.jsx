@@ -1,105 +1,26 @@
 import React from 'react';
 import { Plus, Minus, Compass, Box, RotateCcw } from 'lucide-react';
 
-export default function ZoomControls({
-  zoom,
-  pitch,
-  bearing,
-  onZoomIn,
-  onZoomOut,
-  onZoomSliderChange,
-  onResetZoom,
-  onTogglePitch,
-  onResetBearing
-}) {
+export default function ZoomControls({ zoom, pitch, bearing, onZoomIn, onZoomOut, onZoomSliderChange, onResetZoom, onTogglePitch, onResetBearing }) {
   const currentZoom = typeof zoom === 'number' ? zoom : 15.5;
   const is3D = pitch > 15;
-
-  // Percentage relative to baseline 15.5 (100%)
   const zoomPercentage = Math.round(100 + (currentZoom - 15.5) * 20);
+  const controlButton = 'w-8 h-8 border-b border-black/25 hover:bg-black hover:text-white flex items-center justify-center transition-colors';
 
   return (
-    <div className="absolute bottom-6 left-6 z-20 pointer-events-auto flex flex-col items-center gap-1.5">
-      {/* Compact Zoom Pill (Subtle border, light glass, no heavy backgrounds) */}
-      <div className="p-1.5 rounded-2xl bg-white/80 backdrop-blur-md shadow-md border border-slate-300/80 flex flex-col items-center gap-1.5">
-        {/* Zoom In Button */}
-        <button
-          type="button"
-          onClick={onZoomIn}
-          title="Zoom In"
-          aria-label="Zoom In"
-          className="w-7 h-7 rounded-lg hover:bg-slate-200/70 active:scale-95 text-slate-700 flex items-center justify-center transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Compact Vertical Slider */}
-        <div className="h-24 flex flex-col items-center justify-center py-0.5">
-          <input
-            type="range"
-            min="13"
-            max="18"
-            step="0.1"
-            value={currentZoom}
-            onChange={(e) => onZoomSliderChange(parseFloat(e.target.value))}
-            className="w-20 -rotate-90 origin-center accent-slate-900 cursor-pointer h-1 bg-slate-300/80 rounded-lg appearance-none"
-            title={`Zoom: ${zoomPercentage}%`}
-          />
+    <div className="absolute bottom-5 left-5 z-20 pointer-events-auto flex flex-col gap-2">
+      <div className="paper-panel w-10 flex flex-col items-center">
+        <button type="button" onClick={onZoomIn} title="Zoom in" aria-label="Zoom in" className={controlButton}><Plus className="w-4 h-4" /></button>
+        <div className="h-28 flex items-center justify-center border-b border-black/25">
+          <input type="range" min="13" max="18" step="0.1" value={currentZoom} onChange={(e) => onZoomSliderChange(parseFloat(e.target.value))} className="w-24 -rotate-90 accent-black cursor-pointer h-1 appearance-none" title={`Zoom: ${zoomPercentage}%`} />
         </div>
-
-        {/* Zoom Out Button */}
-        <button
-          type="button"
-          onClick={onZoomOut}
-          title="Zoom Out"
-          aria-label="Zoom Out"
-          className="w-7 h-7 rounded-lg hover:bg-slate-200/70 active:scale-95 text-slate-700 flex items-center justify-center transition-all"
-        >
-          <Minus className="w-3.5 h-3.5" />
-        </button>
-
-        {/* Reset Zoom to 100% (Icon-only) */}
-        <button
-          type="button"
-          onClick={onResetZoom}
-          title="Reset zoom to 100%"
-          aria-label="Reset zoom to 100%"
-          className="p-1 rounded-md hover:bg-slate-200 text-slate-600 transition-colors"
-        >
-          <RotateCcw className="w-3 h-3" />
-        </button>
-
-        {/* Zoom Readout */}
-        <div className="text-[9px] font-mono font-bold text-slate-700 px-1 py-0.5 rounded bg-slate-100">
-          {zoomPercentage}%
-        </div>
+        <button type="button" onClick={onZoomOut} title="Zoom out" aria-label="Zoom out" className={controlButton}><Minus className="w-4 h-4" /></button>
+        <button type="button" onClick={onResetZoom} title="Reset zoom" aria-label="Reset zoom" className={controlButton}><RotateCcw className="w-3.5 h-3.5" /></button>
+        <div className="w-full py-1 text-center font-mono text-[9px] font-medium">{zoomPercentage}%</div>
       </div>
-
-      {/* Compact Camera Controls */}
-      <div className="p-1 rounded-xl bg-white/80 backdrop-blur-md shadow-md border border-slate-300/80 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={onTogglePitch}
-          title={is3D ? "Switch to 2D Plan View" : "Switch to 2.5D Perspective"}
-          className={`px-1.5 py-1 rounded-md text-[10px] font-mono font-bold flex items-center gap-1 transition-all ${
-            is3D ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-200/60'
-          }`}
-        >
-          <Box className="w-3 h-3" />
-          <span>{is3D ? '2.5D' : '2D'}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onResetBearing}
-          title="Reset Camera North"
-          className="p-1 rounded-md text-slate-700 hover:bg-slate-200/60 transition-all"
-        >
-          <Compass
-            className="w-3.5 h-3.5 text-emerald-600 transition-transform duration-200"
-            style={{ transform: `rotate(${-bearing}deg)` }}
-          />
-        </button>
+      <div className="paper-panel flex">
+        <button type="button" onClick={onTogglePitch} title={is3D ? 'Switch to 2D plan view' : 'Switch to 2.5D perspective'} className={`px-2 py-1.5 font-mono text-[10px] font-bold border-r border-black/30 flex items-center gap-1 ${is3D ? 'bg-black text-white' : ''}`}><Box className="w-3 h-3" />{is3D ? '2.5D' : '2D'}</button>
+        <button type="button" onClick={onResetBearing} title="Reset camera north" className="w-8 hover:bg-black hover:text-white flex items-center justify-center transition-colors"><Compass className="w-3.5 h-3.5" style={{ transform: `rotate(${-bearing}deg)` }} /></button>
       </div>
     </div>
   );

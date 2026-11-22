@@ -6,24 +6,60 @@
   * {
     box-sizing: border-box;
   }
+
+  body {
+    background: #F7F6F2;
+    color: #171717;
+  }
+
+  button, input {
+    border-radius: 0 !important;
+  }
 }
 
-/* Glassmorphism Panels */
+/* Paper-plan interface */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+  background: #FDFCFA;
+  border: 1px solid #171717;
+  box-shadow: 4px 4px 0 rgba(23, 23, 23, 0.16);
 }
 
 .glass-panel-dark {
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.35);
+  background: #FDFCFA;
+  color: #171717;
+  border: 2px solid #171717;
+  box-shadow: 6px 6px 0 rgba(23, 23, 23, 0.2);
 }
+
+.paper-grid {
+  background-color: #F7F6F2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath d='M20 0H0V20' fill='none' stroke='%23171717' stroke-opacity='.055' stroke-width='1'/%3E%3C/svg%3E");
+  background-size: 20px 20px;
+}
+
+.paper-panel {
+  background: #FDFCFA;
+  border: 1px solid #171717;
+  box-shadow: 3px 3px 0 rgba(23, 23, 23, 0.14);
+}
+
+.editorial-label {
+  font-family: "DM Mono", monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.paper-rule { border-color: rgba(23, 23, 23, 0.28); }
+.paper-button { border: 1px solid #171717; background: #FDFCFA; color: #171717; }
+.paper-button:hover { background: #171717; color: #FDFCFA; }
+.paper-button-active { background: #171717; color: #FDFCFA; }
+
+/* Remove inherited soft visual language from existing Tailwind utilities. */
+[class*="rounded"] { border-radius: 0 !important; }
+[class*="bg-gradient"] { background-image: none !important; }
 
 /* Minimalist map controls */
 .maplibregl-ctrl-bottom-right {
@@ -40,7 +76,7 @@
 .maplibregl-ctrl-group {
   overflow: hidden;
   border: 1px solid rgba(51, 65, 85, 0.28) !important;
-  border-radius: 3px !important;
+  border-radius: 0 !important;
   background: rgba(247, 248, 250, 0.92) !important;
   box-shadow: 0 2px 8px rgba(51, 65, 85, 0.1) !important;
 }
