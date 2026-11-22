@@ -35,3 +35,31 @@
 .maplibregl-ctrl-bottom-right:hover {
   opacity: 1;
 }
+
+/* Blueprint maquette map chrome */
+.maplibregl-ctrl-group {
+  overflow: hidden;
+  border: 1px solid rgba(51, 65, 85, 0.28) !important;
+  border-radius: 3px !important;
+  background: rgba(247, 248, 250, 0.92) !important;
+  box-shadow: 0 2px 8px rgba(51, 65, 85, 0.1) !important;
+}
+
+.maplibregl-ctrl-group button {
+  width: 30px;
+  height: 30px;
+  background-color: transparent !important;
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top-color: rgba(51, 65, 85, 0.18) !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background-color: rgba(226, 232, 240, 0.75) !important;
+}
+
+.maplibregl-ctrl-attrib {
+  color: #64748B;
+  background: rgba(247, 248, 250, 0.78) !important;
+}
